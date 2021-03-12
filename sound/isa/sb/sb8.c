@@ -111,7 +111,7 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 			goto _err;
 	} else {
 		/* auto-probe legacy ports */
-		static unsigned long possible_ports[] = {
+		static const unsigned long possible_ports[] = {
 			0x220, 0x240, 0x260,
 		};
 		int i;
@@ -192,10 +192,9 @@ static int snd_sb8_probe(struct device *pdev, unsigned int dev)
 	return err;
 }
 
-static int snd_sb8_remove(struct device *pdev, unsigned int dev)
+static void snd_sb8_remove(struct device *pdev, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	return 0;
 }
 
 #ifdef CONFIG_PM
