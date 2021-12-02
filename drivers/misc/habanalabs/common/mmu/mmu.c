@@ -499,24 +499,50 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 	else /* HL_VA_RANGE_TYPE_DRAM */
 		p = &prop->dmmu;
 
-	/*
-	 * find the correct hop shift field in hl_mmu_properties structure
-	 * in order to determine the right maks for the page offset.
-	 */
-	hop0_shift_off = offsetof(struct hl_mmu_properties, hop0_shift);
-	p = (char *)p + hop0_shift_off;
-	p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
-	hop_shift = *(u64 *)p;
-	offset_mask = (1ull << hop_shift) - 1;
-	addr_mask = ~(offset_mask);
-	*phys_addr = (tmp_phys_addr & addr_mask) |
-					(virt_addr & offset_mask);
+	if ((hops->range_type == HL_VA_RANGE_TYPE_DRAM) &&
+			!is_power_of_2(prop->dram_page_size)) {
+		u64 dram_page_size, dram_base, abs_phys_addr, abs_virt_addr,
+			page_id, page_start;
+		u32 page_off;
+
+		/*
+		 * Bit arithmetics cannot be used for non power of two page
+		 * sizes. In addition, since bit arithmetics is not used,
+		 * we cannot ignore dram base. All that shall be considerd.
+		 */
+
+		dram_page_size = prop->dram_page_size;
+		dram_base = prop->dram_base_address;
+		abs_phys_addr = tmp_phys_addr - dram_base;
+		abs_virt_addr = virt_addr - dram_base;
+		page_id = DIV_ROUND_DOWN_ULL(abs_phys_addr, dram_page_size);
+		page_start = page_id * dram_page_size;
+		div_u64_rem(abs_virt_addr, dram_page_size, &page_off);
+
+		*phys_addr = page_start + page_off + dram_base;
+	} else {
+		/*
+		 * find the correct hop shift field in hl_mmu_properties
+		 * structure in order to determine the right masks
+		 * for the page offset.
+		 */
+		hop0_shift_off = offsetof(struct hl_mmu_properties, hop0_shift);
+		p = (char *)p + hop0_shift_off;
+		p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
+		hop_shift = *(u64 *)p;
+		offset_mask = (1ull << hop_shift) - 1;
+		addr_mask = ~(offset_mask);
+		*phys_addr = (tmp_phys_addr & addr_mask) |
+				(virt_addr & offset_mask);
+	}
 }
 
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
 {
 	struct hl_mmu_hop_info hops;
 	int rc;
+
+	memset(&hops, 0, sizeof(hops));
 
 	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
 	if (rc)
@@ -575,6 +601,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
 	case ASIC_GAUDI:
+	case ASIC_GAUDI_SEC:
 		hl_mmu_v1_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		break;
 	default:

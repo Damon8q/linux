@@ -432,7 +432,8 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
 	if (unlikely(!inode))
 		return failed_creating(dentry);
 
-	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
+	/* Do not set bits for OTH */
+	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUSR| S_IRGRP | S_IXUSR | S_IXGRP;
 	inode->i_op = ops;
 	inode->i_fop = &simple_dir_operations;
 
@@ -477,7 +478,7 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  *
  * The instances directory is special as it allows for mkdir and rmdir to
  * to be done by userspace. When a mkdir or rmdir is performed, the inode
- * locks are released and the methhods passed in (@mkdir and @rmdir) are
+ * locks are released and the methods passed in (@mkdir and @rmdir) are
  * called without locks and with the name of the directory being created
  * within the instances directory.
  *

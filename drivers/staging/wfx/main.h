@@ -10,7 +10,10 @@
 #ifndef WFX_MAIN_H
 #define WFX_MAIN_H
 
+#include <linux/device.h>
 #include <linux/gpio/consumer.h>
+
+#include "hif_api_general.h"
 
 struct wfx_dev;
 struct hwbus_ops;
@@ -20,8 +23,7 @@ struct wfx_platform_data {
 	const char *file_fw;
 	const char *file_pds;
 	struct gpio_desc *gpio_wakeup;
-	/*
-	 * if true HIF D_out is sampled on the rising edge of the clock
+	/* if true HIF D_out is sampled on the rising edge of the clock
 	 * (intended to be used in 50Mhz SDIO)
 	 */
 	bool use_rising_clk;
